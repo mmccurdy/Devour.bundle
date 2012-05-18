@@ -1,13 +1,9 @@
-import re
-from HTMLParser import HTMLParser
-
 TITLE    = 'Devour'
 PREFIX   = '/video/devour'
 RSS_FEED = 'http://feeds.feedburner.com/devourfeed?format=xml'
 NS       = {'media':'http://search.yahoo.com/mrss/', 'yt':'http://gdata.youtube.com/schemas/2007'}
 ART      = 'art-default.jpg'
 ICON     = 'icon-default.png'
-ICON_SEARCH = 'icon-search.png' # not currently used
 
 ###################################################################################################
 
@@ -121,17 +117,3 @@ def Thumb(url):
     return DataObject(data, 'image/jpeg')
   except:
     return Redirect(R(ICON))
-
-class MLStripper(HTMLParser):
-    def __init__(self):
-        self.reset()
-        self.fed = []
-    def handle_data(self, d):
-        self.fed.append(d)
-    def get_data(self):
-        return ''.join(self.fed)
-
-def strip_tags(html):
-    s = MLStripper()
-    s.feed(html)
-    return s.get_data()
