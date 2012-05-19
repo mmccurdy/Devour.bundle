@@ -1,80 +1,33 @@
-import devour_util
 import time
 from datetime import date
 
-TITLE    = 'Devour'
-PREFIX   = '/video/devour'
-RSS_FEED = 'http://feeds.feedburner.com/devourfeed?format=xml'
-NS       = {'media':'http://search.yahoo.com/mrss/', 'yt':'http://gdata.youtube.com/schemas/2007'}
-ART      = 'art-default.jpg'
-ICON     = 'icon-default.png'
-SEARCH   = 'icon-search.png'
+SEARCH_URL = "http://devour.com/search/%s/"
+REGEXP_NS = "http://exslt.org/regular-expressions"
 
-###################################################################################################
 
-def Start():
-  Plugin.AddPrefixHandler(PREFIX, MainMenu, TITLE, ICON, ART)
-  Plugin.AddViewGroup("Details", viewMode="InfoList", mediaType="items")
-  Plugin.AddViewGroup("List", viewMode="List", mediaType="items")
-
-  ObjectContainer.title1 = TITLE
-  ObjectContainer.view_group = 'List'
-  ObjectContainer.art = R(ART)
-
-  DirectoryObject.thumb = R(ICON)
-  DirectoryObject.art = R(ART)
-  VideoClipObject.thumb = R(ICON)
-  VideoClipObject.art = R(ART)
-
-###################################################################################################
-
-@handler('/video/devour', TITLE)
-
-def MainMenu():
-  oc = ObjectContainer()
-
-  oc.add(DirectoryObject(key=Callback(LatestList), title="Latest Videos"))
-  oc.add(SearchDirectoryObject(identifier="com.plexapp.plugins.devour", title="Search for Videos", prompt="Search Devour for...", thumb=R(ICON), art=R(ART)))
+def Search(query):
+  oc = ObjectContainer(title2='Search Results')
   
-  return oc
-
-def LatestList():
-  oc = ObjectContainer()
-
-  resultDict = {}
-
-  @parallelize
-  def GetVideos():
-    videos = XML.ElementFromURL(RSS_FEED).xpath('//item')
-
-    for num in range(len(videos)):
-      video = videos[num]
-
-      @task
-      def GetVideo(num = num, resultDict = resultDict, video=video):
-        
-        # Since vids are not embedded in RSS, we need to grab the actual Devour page and pull out the video URL.
-        try:
-          resultDict[num] = DevourScrape(devoururl=video.xpath('./link')[0].text, date=Datetime.ParseDate(video.xpath('./pubDate')[0].text))
-        except:
-          Log("couldn't add")
-          pass
-
-  keys = resultDict.keys()
-  keys.sort()
-  for key in keys:
-    oc.add(resultDict[key])
-  return oc
-
-####################################################################################################
+  html = HTML.ElementFromURL(SEARCH_URL % (String.Quote(query, usePlus=True)))
+  results = html.xpath("//div[re:test(@class, '^orko|orkolast$')]", namespaces={'re':REGEXP_NS})
+  
+  for video in results:
+    oc.add(DevourScrape(video.xpath('./a')[0].get('href')))
+    
+  return  oc
 
 def Thumb(url):
-  try:
-    data = HTTP.Request(url, cacheTime=CACHE_1MONTH).content
-    #data = HTTP.Request(url, cacheTime=0).content
-    return DataObject(data, 'image/jpeg')
-  except:
-    return Redirect(R(ICON))
+  if url:
+    try:
+      data = HTTP.Request(url, cacheTime=CACHE_1MONTH).content
+      return DataObject(data, 'image/jpeg')
+    except:
+      return Redirect(R('icon-default.png'))
+  return None
+
+
+def NoResults():
+  pass
 
 #
 # DevourScrape takes a Devour video page URL and returns a well-formed VideoClipObject
