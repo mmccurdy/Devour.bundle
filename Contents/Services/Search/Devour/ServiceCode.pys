@@ -1,17 +1,16 @@
+#from DevourUtil import DevourScrape
 import time
 from datetime import date
 
-SEARCH_URL = "http://devour.com/search/%s/"
-REGEXP_NS = "http://exslt.org/regular-expressions"
 
+SEARCH_URL = "http://devour.com/search/%s/"
 
 def Search(query):
   oc = ObjectContainer(title2='Search Results')
   
   html = HTML.ElementFromURL(SEARCH_URL % (String.Quote(query, usePlus=True)))
-  results = html.xpath("//div[re:test(@class, '^orko|orkolast$')]", namespaces={'re':REGEXP_NS})
   
-  for video in results:
+  for video in html.xpath('//div[starts-with(@class, "orko")]'):
     oc.add(DevourScrape(video.xpath('./a')[0].get('href')))
     
   return  oc
@@ -25,9 +24,6 @@ def Thumb(url):
       return Redirect(R('icon-default.png'))
   return None
 
-
-def NoResults():
-  pass
 
 #
 # DevourScrape takes a Devour video page URL and returns a well-formed VideoClipObject

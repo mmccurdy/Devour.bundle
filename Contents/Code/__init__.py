@@ -1,14 +1,18 @@
-import devour_util
 import time
 from datetime import date
 
 TITLE    = 'Devour'
 PREFIX   = '/video/devour'
+URL      = 'http://devour.com/'
 RSS_FEED = 'http://feeds.feedburner.com/devourfeed?format=xml'
 NS       = {'media':'http://search.yahoo.com/mrss/', 'yt':'http://gdata.youtube.com/schemas/2007'}
 ART      = 'art-default.jpg'
 ICON     = 'icon-default.png'
 SEARCH   = 'icon-search.png'
+
+###################################################################################################
+
+#DevourScrape = SharedCodeService.DevourUtil.DevourScrape
 
 ###################################################################################################
 
@@ -38,24 +42,24 @@ def MainMenu():
   
   return oc
 
-def LatestList():
+def LatestList(pg=''):
   oc = ObjectContainer()
 
   resultDict = {}
 
   @parallelize
   def GetVideos():
-    videos = XML.ElementFromURL(RSS_FEED).xpath('//item')
-
+    
+    html = HTML.ElementFromURL(URL + str(pg))
+    videos = html.xpath('//div[starts-with(@class, "orko")]')
+  
     for num in range(len(videos)):
       video = videos[num]
 
       @task
       def GetVideo(num = num, resultDict = resultDict, video=video):
-        
-        # Since vids are not embedded in RSS, we need to grab the actual Devour page and pull out the video URL.
         try:
-          resultDict[num] = DevourScrape(devoururl=video.xpath('./link')[0].text, date=Datetime.ParseDate(video.xpath('./pubDate')[0].text))
+          resultDict[num] = DevourScrape(video.xpath('./a')[0].get('href'))
         except:
           Log("couldn't add")
           pass
@@ -64,6 +68,9 @@ def LatestList():
   keys.sort()
   for key in keys:
     oc.add(resultDict[key])
+  if pg == '':
+    pg = 1
+  oc.add(DirectoryObject(key=Callback(LatestList, pg=pg+1), title="More Videos..."))
   return oc
 
 ####################################################################################################
@@ -116,6 +123,7 @@ def DevourScrape(devoururl, date=Datetime.ParseDate(str(date.today()))):
     try:
       ytmeta = XML.ObjectFromURL('http://gdata.youtube.com/feeds/api/videos/' + ytid + '?v=2')
       thumb = ytmeta.xpath('//*[@yt:name="hqdefault"]/@url',namespaces=NS)[0]
+      Log('YT thumb ---> ' + thumb)
       duration = int(ytmeta.xpath('//yt:duration/@seconds',namespaces=NS)[0]) * 1000
     except:
       # fall back to static URL for thumb (unsupported by Youtube)

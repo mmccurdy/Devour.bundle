@@ -1,9 +1,12 @@
+import time
+from datetime import date
+
 #
 # DevourScrape takes a Devour video page URL and returns a well-formed VideoClipObject
 # Optional date parameter: Devour video pages don't list dates, but the RSS feed does.
 #
 
-def DevourScrape(devoururl, date=''):
+def DevourScrape(devoururl, date=Datetime.ParseDate(str(date.today()))):
 
   devourhtml = HTML.ElementFromURL(devoururl)
 
@@ -13,7 +16,7 @@ def DevourScrape(devoururl, date=''):
   
   url = devourhtml.xpath('//iframe')[0].get('src')
 
-  Log('Scraping URL -------> ' + str(url))
+  #Log('Scraping URL -------> ' + str(url))
 
   if url.find('vimeo') != -1:
     
@@ -28,7 +31,7 @@ def DevourScrape(devoururl, date=''):
       duration = int(vimeometa[0]['duration']) * 1000
     except:
       thumb = ''
-      duration = ''
+      duration = 0
 
   else:
     # Existing Youtube URL service will match the default Devour link URL format.
@@ -45,7 +48,7 @@ def DevourScrape(devoururl, date=''):
         thumb = 'http://img.youtube.com/vi/' + ytid + '/hqdefault.jpg'
       except:
         thumb = ''
-      duration = ''
+      duration = 0
 
   # Use the Devour-provided title, pub date, description vs. the ones assocaited with the underlying clips.
 
@@ -60,6 +63,7 @@ def DevourScrape(devoururl, date=''):
             url=url,
             title = title, 
             summary = summary, 
-            thumb = Function(Thumb, url=thumb),
+            thumb = Callback(Thumb, url=thumb),
             duration = duration,
-            originally_available_at = date)
+            originally_available_at = date
+            )
