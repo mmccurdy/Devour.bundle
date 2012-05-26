@@ -24,12 +24,5 @@
 		<string>H.264</string>
 	</array>
 	<key>PlexSearchServices</key>
-	<dict>
-		<key>Devour</key>
-		<dict>
-			<key>Identifier</key>
-			<string>com.plexapp.plugins.devour</string>
-		</dict>
-	</dict>
 </dict>
 </plist>

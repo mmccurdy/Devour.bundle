@@ -5,7 +5,10 @@
 	<key>Search</key>
 	<dict>
 		<key>Devour</key>
-		<dict/>
+		<dict>
+			<key>Identifier</key>
+			<string>com.plexapp.plugins.devour</string>
+		</dict>
 	</dict>
 </dict>
 </plist>

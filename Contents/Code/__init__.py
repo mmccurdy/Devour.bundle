@@ -1,10 +1,8 @@
-import time
 from datetime import date
 
 TITLE    = 'Devour'
 PREFIX   = '/video/devour'
 URL      = 'http://devour.com/'
-RSS_FEED = 'http://feeds.feedburner.com/devourfeed?format=xml'
 NS       = {'media':'http://search.yahoo.com/mrss/', 'yt':'http://gdata.youtube.com/schemas/2007'}
 ART      = 'art-default.jpg'
 ICON     = 'icon-default.png'
@@ -18,7 +16,6 @@ SEARCH   = 'icon-search.png'
 
 def Start():
   Plugin.AddPrefixHandler(PREFIX, MainMenu, TITLE, ICON, ART)
-  Plugin.AddViewGroup("Details", viewMode="InfoList", mediaType="items")
   Plugin.AddViewGroup("List", viewMode="List", mediaType="items")
 
   ObjectContainer.title1 = TITLE
@@ -32,14 +29,12 @@ def Start():
 
 ###################################################################################################
 
-@handler('/video/devour', TITLE)
-
 def MainMenu():
   oc = ObjectContainer()
 
   oc.add(DirectoryObject(key=Callback(LatestList), title="Latest Videos"))
-  oc.add(SearchDirectoryObject(identifier="com.plexapp.plugins.devour", title="Search for Videos", prompt="Search Devour for...", thumb=R(ICON), art=R(ART)))
-  
+  oc.add(SearchDirectoryObject(identifier="com.plexapp.plugins.devour", title="Search for Videos", prompt="Search Devour for...", thumb=R(SEARCH), art=R(ART)))
+
   return oc
 
 def LatestList(pg=''):
@@ -49,10 +44,10 @@ def LatestList(pg=''):
 
   @parallelize
   def GetVideos():
-    
+
     html = HTML.ElementFromURL(URL + str(pg))
     videos = html.xpath('//div[starts-with(@class, "orko")]')
-  
+
     for num in range(len(videos)):
       video = videos[num]
 
@@ -66,10 +61,13 @@ def LatestList(pg=''):
 
   keys = resultDict.keys()
   keys.sort()
+
   for key in keys:
     oc.add(resultDict[key])
+
   if pg == '':
     pg = 1
+
   oc.add(DirectoryObject(key=Callback(LatestList, pg=pg+1), title="More Videos..."))
   return oc
 
@@ -95,13 +93,13 @@ def DevourScrape(devoururl, date=Datetime.ParseDate(str(date.today()))):
   # Examples of what we see from Devour (Youtube and Vimeo):
   # 'http://www.youtube.com/embed/5Be2YnlRIg8?autohide=1&fs=1&autoplay=0&iv_load_policy=3&rel=0&modestbranding=1&showinfo=0&hd=1'
   # 'http://player.vimeo.com/video/37963959?title=0&byline=0&portrait=0&color=ff0000&fullscreen=1&autoplay=0'
-  
+
   url = devourhtml.xpath('//iframe')[0].get('src')
 
   #Log('Scraping URL -------> ' + str(url))
 
   if url.find('vimeo') != -1:
-    
+
     # canonicalize the vimeo URL so the existing Vimeo URL service can match it...
     vimeoid = url[url.rfind('/')+1:url.find('?')]
     url = 'http://vimeo.com/' + vimeoid
@@ -123,7 +121,7 @@ def DevourScrape(devoururl, date=Datetime.ParseDate(str(date.today()))):
     try:
       ytmeta = XML.ObjectFromURL('http://gdata.youtube.com/feeds/api/videos/' + ytid + '?v=2')
       thumb = ytmeta.xpath('//*[@yt:name="hqdefault"]/@url',namespaces=NS)[0]
-      Log('YT thumb ---> ' + thumb)
+      #Log('YT thumb ---> ' + thumb)
       duration = int(ytmeta.xpath('//yt:duration/@seconds',namespaces=NS)[0]) * 1000
     except:
       # fall back to static URL for thumb (unsupported by Youtube)
@@ -143,10 +141,10 @@ def DevourScrape(devoururl, date=Datetime.ParseDate(str(date.today()))):
     summary = ''
 
   return VideoClipObject(
-            url=url,
-            title = title, 
-            summary = summary, 
-            thumb = Callback(Thumb, url=thumb),
-            duration = duration,
-            originally_available_at = date
-            )
+           url = url,
+           title = title,
+           summary = summary,
+           thumb = Callback(Thumb, url=thumb),
+           duration = duration,
+           originally_available_at = date
+         )
