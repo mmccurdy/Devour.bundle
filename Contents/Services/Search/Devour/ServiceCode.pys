@@ -1,93 +1,38 @@
-#from DevourUtil import DevourScrape
-import time
-from datetime import date
-
-
-SEARCH_URL = "http://devour.com/search/%s/"
+SEARCH_URL = 'http://devour.com/search/%s/'
 
 def Search(query):
-  oc = ObjectContainer(title2='Search Results')
-  
+  oc = ObjectContainer()
   html = HTML.ElementFromURL(SEARCH_URL % (String.Quote(query, usePlus=True)))
-  
+
   for video in html.xpath('//div[starts-with(@class, "orko")]'):
-    oc.add(DevourScrape(video.xpath('./a')[0].get('href')))
-    
-  return  oc
-
-def Thumb(url):
-  if url:
     try:
-      data = HTTP.Request(url, cacheTime=CACHE_1MONTH).content
-      return DataObject(data, 'image/jpeg')
+      devour_url = video.xpath('./a')[0].get('href')
+      result = DevourScrape(devour_url)
     except:
-      return Redirect(R('icon-default.png'))
-  return None
+      Log("Couldn't add")
+      continue
 
+    oc.add(result)
 
+  return oc
+
+####################################################################################################
 #
 # DevourScrape takes a Devour video page URL and returns a well-formed VideoClipObject
-# Optional date parameter: Devour video pages don't list dates, but the RSS feed does.
 #
 
-def DevourScrape(devoururl, date=Datetime.ParseDate(str(date.today()))):
+def DevourScrape(devour_url):
 
-  devourhtml = HTML.ElementFromURL(devoururl)
+  devour_html = HTML.ElementFromURL(devour_url)
+  url = devour_html.xpath('//iframe')[0].get('src')
+  video = URLService.MetadataObjectForURL(url)
 
-  # Examples of what we see from Devour (Youtube and Vimeo):
-  # 'http://www.youtube.com/embed/5Be2YnlRIg8?autohide=1&fs=1&autoplay=0&iv_load_policy=3&rel=0&modestbranding=1&showinfo=0&hd=1'
-  # 'http://player.vimeo.com/video/37963959?title=0&byline=0&portrait=0&color=ff0000&fullscreen=1&autoplay=0'
-  
-  url = devourhtml.xpath('//iframe')[0].get('src')
-
-  #Log('Scraping URL -------> ' + str(url))
-
-  if url.find('vimeo') != -1:
-    
-    # canonicalize the vimeo URL so the existing Vimeo URL service can match it...
-    vimeoid = url[url.rfind('/')+1:url.find('?')]
-    url = 'http://vimeo.com/' + vimeoid
-
-    # grab the JSON from the API and pull out some metadata...
-    try:
-      vimeometa = JSON.ObjectFromURL('http://vimeo.com/api/v2/video/' + vimeoid + '.json')
-      thumb = vimeometa[0]['thumbnail_large']
-      duration = int(vimeometa[0]['duration']) * 1000
-    except:
-      thumb = ''
-      duration = 0
-
-  else:
-    # Existing Youtube URL service will match the default Devour link URL format.
-
-    # grab the XML metadata from the API and pull out some metadata...
-    ytid = url[url.rfind('/')+1:url.find('?')]
-    try:
-      ytmeta = XML.ObjectFromURL('http://gdata.youtube.com/feeds/api/videos/' + ytid + '?v=2')
-      thumb = ytmeta.xpath('//*[@yt:name="hqdefault"]/@url',namespaces=NS)[0]
-      duration = int(ytmeta.xpath('//yt:duration/@seconds',namespaces=NS)[0]) * 1000
-    except:
-      # fall back to static URL for thumb (unsupported by Youtube)
-      try:
-        thumb = 'http://img.youtube.com/vi/' + ytid + '/hqdefault.jpg'
-      except:
-        thumb = ''
-      duration = 0
-
-  # Use the Devour-provided title, pub date, description vs. the ones assocaited with the underlying clips.
-
-  title = devourhtml.xpath('//div[@id="left"]/h1//text()')[0]
+  # Use the Devour-provided title, description vs. the ones assocaited with the underlying clips.
+  video.title = devour_html.xpath('//div[@id="left"]/h1//text()')[0]
   try:
-    desctext = devourhtml.xpath('//div[@id="left"]/p//text()')
-    summary = "".join(desctext)
+    description = devour_html.xpath('//div[@id="left"]/p//text()')
+    video.summary = ''.join(description)
   except:
-    summary = ''
+    pass
 
-  return VideoClipObject(
-            url=url,
-            title = title, 
-            summary = summary, 
-            thumb = Callback(Thumb, url=thumb),
-            duration = duration,
-            originally_available_at = date
-            )
+  return video
