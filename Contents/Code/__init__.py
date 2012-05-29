@@ -1,21 +1,13 @@
-from datetime import date
-
-TITLE    = 'Devour'
-PREFIX   = '/video/devour'
-URL      = 'http://devour.com/'
-NS       = {'media':'http://search.yahoo.com/mrss/', 'yt':'http://gdata.youtube.com/schemas/2007'}
-ART      = 'art-default.jpg'
-ICON     = 'icon-default.png'
-SEARCH   = 'icon-search.png'
-
-###################################################################################################
-
-#DevourScrape = SharedCodeService.DevourUtil.DevourScrape
+TITLE = 'Devour'
+DEVOUR_URL = 'http://devour.com/'
+ART = 'art-default.jpg'
+ICON = 'icon-default.png'
+SEARCH = 'icon-search.png'
 
 ###################################################################################################
 
 def Start():
-  Plugin.AddPrefixHandler(PREFIX, MainMenu, TITLE, ICON, ART)
+  Plugin.AddPrefixHandler('/video/devour', MainMenu, TITLE, ICON, ART)
   Plugin.AddViewGroup("List", viewMode="List", mediaType="items")
 
   ObjectContainer.title1 = TITLE
@@ -37,114 +29,61 @@ def MainMenu():
 
   return oc
 
-def LatestList(pg=''):
+###################################################################################################
+
+def LatestList(page=1):
   oc = ObjectContainer()
 
-  resultDict = {}
+  result = {}
 
   @parallelize
   def GetVideos():
 
-    html = HTML.ElementFromURL(URL + str(pg))
+    url = DEVOUR_URL
+    if page > 1:
+      url = '%s%d/' % (url, page)
+
+    html = HTML.ElementFromURL(url)
     videos = html.xpath('//div[starts-with(@class, "orko")]')
 
     for num in range(len(videos)):
       video = videos[num]
 
       @task
-      def GetVideo(num = num, resultDict = resultDict, video=video):
+      def GetVideo(num = num, result = result, video = video):
         try:
-          resultDict[num] = DevourScrape(video.xpath('./a')[0].get('href'))
+          devour_url = video.xpath('./a')[0].get('href')
+          result[num] = DevourScrape(devour_url)
         except:
-          Log("couldn't add")
+          Log("Couldn't add")
           pass
 
-  keys = resultDict.keys()
+  keys = result.keys()
   keys.sort()
 
   for key in keys:
-    oc.add(resultDict[key])
+    oc.add(result[key])
 
-  if pg == '':
-    pg = 1
-
-  oc.add(DirectoryObject(key=Callback(LatestList, pg=pg+1), title="More Videos..."))
+  oc.add(DirectoryObject(key=Callback(LatestList, page=page+1), title="More Videos..."))
   return oc
 
 ####################################################################################################
-
-def Thumb(url):
-  try:
-    data = HTTP.Request(url, cacheTime=CACHE_1MONTH).content
-    #data = HTTP.Request(url, cacheTime=0).content
-    return DataObject(data, 'image/jpeg')
-  except:
-    return Redirect(R(ICON))
-
 #
 # DevourScrape takes a Devour video page URL and returns a well-formed VideoClipObject
-# Optional date parameter: Devour video pages don't list dates, but the RSS feed does.
 #
 
-def DevourScrape(devoururl, date=Datetime.ParseDate(str(date.today()))):
+def DevourScrape(devour_url):
 
-  devourhtml = HTML.ElementFromURL(devoururl)
+  devour_html = HTML.ElementFromURL(devour_url)
+  url = devour_html.xpath('//iframe')[0].get('src')
+  video = URLService.MetadataObjectForURL(url)
 
-  # Examples of what we see from Devour (Youtube and Vimeo):
-  # 'http://www.youtube.com/embed/5Be2YnlRIg8?autohide=1&fs=1&autoplay=0&iv_load_policy=3&rel=0&modestbranding=1&showinfo=0&hd=1'
-  # 'http://player.vimeo.com/video/37963959?title=0&byline=0&portrait=0&color=ff0000&fullscreen=1&autoplay=0'
-
-  url = devourhtml.xpath('//iframe')[0].get('src')
-
-  #Log('Scraping URL -------> ' + str(url))
-
-  if url.find('vimeo') != -1:
-
-    # canonicalize the vimeo URL so the existing Vimeo URL service can match it...
-    vimeoid = url[url.rfind('/')+1:url.find('?')]
-    url = 'http://vimeo.com/' + vimeoid
-
-    # grab the JSON from the API and pull out some metadata...
-    try:
-      vimeometa = JSON.ObjectFromURL('http://vimeo.com/api/v2/video/' + vimeoid + '.json')
-      thumb = vimeometa[0]['thumbnail_large']
-      duration = int(vimeometa[0]['duration']) * 1000
-    except:
-      thumb = ''
-      duration = 0
-
-  else:
-    # Existing Youtube URL service will match the default Devour link URL format.
-
-    # grab the XML metadata from the API and pull out some metadata...
-    ytid = url[url.rfind('/')+1:url.find('?')]
-    try:
-      ytmeta = XML.ObjectFromURL('http://gdata.youtube.com/feeds/api/videos/' + ytid + '?v=2')
-      thumb = ytmeta.xpath('//*[@yt:name="hqdefault"]/@url',namespaces=NS)[0]
-      #Log('YT thumb ---> ' + thumb)
-      duration = int(ytmeta.xpath('//yt:duration/@seconds',namespaces=NS)[0]) * 1000
-    except:
-      # fall back to static URL for thumb (unsupported by Youtube)
-      try:
-        thumb = 'http://img.youtube.com/vi/' + ytid + '/hqdefault.jpg'
-      except:
-        thumb = ''
-      duration = 0
-
-  # Use the Devour-provided title, pub date, description vs. the ones assocaited with the underlying clips.
-
-  title = devourhtml.xpath('//div[@id="left"]/h1//text()')[0]
+  # Use the Devour-provided title, description vs. the ones assocaited with the underlying clips.
+  video.title = devour_html.xpath('//div[@id="left"]/h1//text()')[0]
   try:
-    desctext = devourhtml.xpath('//div[@id="left"]/p//text()')
-    summary = "".join(desctext)
+    description = devour_html.xpath('//div[@id="left"]/p//text()')
+    video.summary = ''.join(description)
   except:
-    summary = ''
+    pass
 
-  return VideoClipObject(
-           url = url,
-           title = title,
-           summary = summary,
-           thumb = Callback(Thumb, url=thumb),
-           duration = duration,
-           originally_available_at = date
-         )
+  return video
