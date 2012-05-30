@@ -19,7 +19,7 @@ def Start():
 	VideoClipObject.thumb = R(ICON)
 	VideoClipObject.art = R(ART)
 
-	HTTP.CacheTime = CACHE_1DAY
+	HTTP.CacheTime = 300
 	HTTP.Headers['User-Agent'] = 'Mozilla/5.0 (Macintosh; Intel Mac OS X 10.7; rv:12.0) Gecko/20100101 Firefox/12.0'
 
 ###################################################################################################
@@ -35,7 +35,7 @@ def MainMenu():
 ###################################################################################################
 def LatestList(page=1):
 
-	oc = ObjectContainer()
+	oc = ObjectContainer(title2="Latest Videos")
 
 	result = {}
 
@@ -76,7 +76,7 @@ def LatestList(page=1):
 
 def DevourScrape(devour_url):
 
-	devour_html = HTML.ElementFromURL(devour_url)
+	devour_html = HTML.ElementFromURL(devour_url, cacheTime=CACHE_1WEEK)
 	url = devour_html.xpath('//iframe')[0].get('src')
 	video = URLService.MetadataObjectForURL(url)
 
