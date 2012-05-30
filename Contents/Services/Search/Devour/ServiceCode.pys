@@ -1,38 +1,38 @@
 SEARCH_URL = 'http://devour.com/search/%s/'
 
+####################################################################################################
 def Search(query):
-  oc = ObjectContainer()
-  html = HTML.ElementFromURL(SEARCH_URL % (String.Quote(query, usePlus=True)))
 
-  for video in html.xpath('//div[starts-with(@class, "orko")]'):
-    try:
-      devour_url = video.xpath('./a')[0].get('href')
-      result = DevourScrape(devour_url)
-    except:
-      Log("Couldn't add")
-      continue
+	oc = ObjectContainer()
+	html = HTML.ElementFromURL(SEARCH_URL % (String.Quote(query, usePlus=True)))
 
-    oc.add(result)
+	for video in html.xpath('//div[starts-with(@class, "orko")]'):
+		try:
+			devour_url = video.xpath('./a')[0].get('href')
+			result = DevourScrape(devour_url)
+		except:
+			Log("Couldn't add video from %s" % devour_url)
+			continue
 
-  return oc
+		oc.add(result)
+
+	return oc
 
 ####################################################################################################
-#
 # DevourScrape takes a Devour video page URL and returns a well-formed VideoClipObject
-#
 
 def DevourScrape(devour_url):
 
-  devour_html = HTML.ElementFromURL(devour_url)
-  url = devour_html.xpath('//iframe')[0].get('src')
-  video = URLService.MetadataObjectForURL(url)
+	devour_html = HTML.ElementFromURL(devour_url)
+	url = devour_html.xpath('//iframe')[0].get('src')
+	video = URLService.MetadataObjectForURL(url)
 
-  # Use the Devour-provided title, description vs. the ones assocaited with the underlying clips.
-  video.title = devour_html.xpath('//div[@id="left"]/h1//text()')[0]
-  try:
-    description = devour_html.xpath('//div[@id="left"]/p//text()')
-    video.summary = ''.join(description)
-  except:
-    pass
+	# Use the Devour-provided title, description vs. the ones assocaited with the underlying clips.
+	video.title = devour_html.xpath('//div[@id="left"]/h1//text()')[0]
+	try:
+		description = devour_html.xpath('//div[@id="left"]/p//text()')
+		video.summary = ''.join(description)
+	except:
+		pass
 
-  return video
+	return video
