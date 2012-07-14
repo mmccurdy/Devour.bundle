@@ -8,6 +8,10 @@
 		<dict>
 			<key>Identifier</key>
 			<string>com.plexapp.plugins.devour</string>
+			<key>TestQueries</key>
+			<array>
+				<string>video</string>
+			</array>
 		</dict>
 	</dict>
 </dict>
