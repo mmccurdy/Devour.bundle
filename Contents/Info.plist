@@ -23,5 +23,9 @@
 	<array>
 		<string>H.264</string>
 	</array>
+	<key>PlexPluginTesterFlags</key>
+	<array>
+		<string>NoURLServices</string>
+	</array>
 </dict>
 </plist>
